@@ -43,7 +43,7 @@
       register: cluster_machinesets
 
     - name: Extract target machinesets
-      ansible.builtin.set_facts:
+      ansible.builtin.set_fact:
         target_machineset_resources: "{{ cluster_machinesets.resources[0:max_machineset_count | int] }}"
 
     - name: Ensure we have at least two machines if only one machineset
