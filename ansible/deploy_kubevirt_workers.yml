@@ -47,7 +47,7 @@
         target_machineset_resources: "{{ cluster_machinesets.resources[0:max_machineset_count | int] }}"
 
     - name: Ensure we have at least two machines if only one machineset
-      ansible.builtin.set_facts:
+      ansible.builtin.set_fact:
         machineset_replicas: 2
       when: target_machineset_resources | length == 1
 
