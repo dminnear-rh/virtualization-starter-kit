@@ -16,6 +16,7 @@
     machineset_replicas: 1
     machineset_user_data_secret: worker-user-data
     machineset_user_data_namespace: openshift-machine-api
+    max_machineset_count: 2
   tasks:
     - name: Query Cluster Infrastructure Name
       kubernetes.core.k8s_info:
@@ -29,6 +30,11 @@
       when:
         - cluster_info.resources[0].status.platform not in [ "AWS" ]
 
+    - name: Set Dynamic MachineSet Facts
+      ansible.builtin.set_fact:
+        infrastructure_name: "{{ cluster_info.resources[0].status.infrastructureName }}"
+        infrastructure_region: "{{ cluster_info.resources[0].status.platformStatus.aws.region }}"
+
     - name: Query MachineSets
       kubernetes.core.k8s_info:
         api_version: machine.openshift.io/v1beta1
@@ -36,16 +42,20 @@
         namespace: openshift-machine-api
       register: cluster_machinesets
 
-    - name: Set Dynamic MachineSet Facts
-      ansible.builtin.set_fact:
-        infrastructure_name: "{{ cluster_info.resources[0].status.infrastructureName }}"
-        infrastructure_region: "{{ cluster_info.resources[0].status.platformStatus.aws.region }}"
+    - name: Extract target machinesets
+      ansible.builtin.set_facts:
+        target_machineset_resources: "{{ cluster_machinesets.resources[0:max_machineset_count | int] }}"
+
+    - name: Ensure we have at least two machines if only one machineset
+      ansible.builtin.set_facts:
+        machineset_replicas: 2
+      when: target_machineset_resources | length == 1
 
     - name: Define template for creating machineset
       ansible.builtin.set_fact:
         machineset_yaml: |
           ---
-          {% for res in cluster_machinesets.resources %}
+          {% for res in target_machineset_resources %}
           - apiVersion: machine.openshift.io/v1beta1
             kind: MachineSet
             metadata:
